@@ -14,7 +14,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch):
 
     # 在进程0中打印训练进度
     if is_main_process():
-        data_loader = tqdm(data_loader, file=sys.stdout)
+        data_loader = tqdm(data_loader, file=sys.stdout) #指定进度条的输出目标为标准输出（默认是控制台）
 
     for step, data in enumerate(data_loader):
         images, labels = data
@@ -23,18 +23,18 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch):
 
         loss = loss_function(pred, labels.to(device))
         loss.backward()
-        loss = reduce_value(loss, average=True)
+        loss = reduce_value(loss, average=True) # loss同步，单卡训练不用管，得求所有设备上的均值
         mean_loss = (mean_loss * step + loss.detach()) / (step + 1)  # update mean losses
 
         # 在进程0中打印平均loss
         if is_main_process():
-            data_loader.desc = "[epoch {}] mean loss {}".format(epoch, round(mean_loss.item(), 3))
+            data_loader.desc = "[epoch {}] mean loss {}".format(epoch, round(mean_loss.item(), 3)) # 进度条表头
 
         if not torch.isfinite(loss):
             print('WARNING: non-finite loss, ending training ', loss)
             sys.exit(1)
 
-        optimizer.step()
+        optimizer.step() 
         optimizer.zero_grad()
 
     # 等待所有进程计算完毕
@@ -58,8 +58,8 @@ def evaluate(model, data_loader, device):
     for step, data in enumerate(data_loader):
         images, labels = data
         pred = model(images.to(device))
-        pred = torch.max(pred, dim=1)[1]
-        sum_num += torch.eq(pred, labels.to(device)).sum()
+        pred = torch.max(pred, dim=1)[1] # 在第 1 维度（每一行）上找到最大值，返回 (values, indices)：
+        sum_num += torch.eq(pred, labels.to(device)).sum() 
 
     # 等待所有进程计算完毕
     if device != torch.device("cpu"):

@@ -5,6 +5,10 @@ import torch.distributed as dist
 
 
 def init_distributed_mode(args):
+    # RANK：当前进程的全局编号（rank）。
+    # WORLD_SIZE：进程总数（world size），即所有 GPU 的数量。
+    # LOCAL_RANK：当前进程在本地节点上的 GPU 编号。
+    # 单机多卡 LOCAL_RANK和RANK一样
     if 'RANK' in os.environ and 'WORLD_SIZE' in os.environ:
         args.rank = int(os.environ["RANK"])
         args.world_size = int(os.environ['WORLD_SIZE'])
@@ -25,7 +29,7 @@ def init_distributed_mode(args):
         args.rank, args.dist_url), flush=True)
     dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
                             world_size=args.world_size, rank=args.rank)
-    dist.barrier()
+    dist.barrier() ## 同步
 
 
 def cleanup():

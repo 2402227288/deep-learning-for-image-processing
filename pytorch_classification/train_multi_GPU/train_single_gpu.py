@@ -13,6 +13,16 @@ from my_dataset import MyDataSet
 from utils import read_split_data
 from multi_train_utils.train_eval_utils import train_one_epoch, evaluate
 
+##调试
+import debugpy
+try:
+    # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
+    debugpy.listen(("localhost", 9501))
+    print("Waiting for debugger attach")
+    debugpy.wait_for_client()
+except Exception as e:
+    pass
+
 
 def main(args):
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
@@ -72,7 +82,7 @@ def main(args):
     model = resnet34(num_classes=args.num_classes).to(device)
     if args.weights != "":
         if os.path.exists(args.weights):
-            weights_dict = torch.load(args.weights, map_location=device)
+            weights_dict = torch.load(args.weights)  # 加载权重,估计模型保存路径为map_location="cpu"才报错
             load_weights_dict = {k: v for k, v in weights_dict.items()
                                  if model.state_dict()[k].numel() == v.numel()}
             print(model.load_state_dict(load_weights_dict, strict=False))
@@ -90,7 +100,7 @@ def main(args):
     optimizer = optim.SGD(pg, lr=args.lr, momentum=0.9, weight_decay=0.005)
     # Scheduler https://arxiv.org/pdf/1812.01187.pdf
     lf = lambda x: ((1 + math.cos(x * math.pi / args.epochs)) / 2) * (1 - args.lrf) + args.lrf  # cosine
-    scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)
+    scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf) # 学习率调度
 
     for epoch in range(args.epochs):
         # train
@@ -127,14 +137,14 @@ if __name__ == '__main__':
     # 数据集所在根目录
     # https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz
     parser.add_argument('--data-path', type=str,
-                        default="/home/w180662/my_project/my_github/data_set/flower_data/flower_photos")
+                        default="./flower_photos")
 
     # resnet34 官方权重下载地址
     # https://download.pytorch.org/models/resnet34-333f7ec4.pth
     parser.add_argument('--weights', type=str, default='resNet34.pth',
                         help='initial weights path')
     parser.add_argument('--freeze-layers', type=bool, default=False)
-    parser.add_argument('--device', default='cuda', help='device id (i.e. 0 or 0,1 or cpu)')
+    parser.add_argument('--device', default='cuda', help='device id (i.e. 0 or 0,1 or cpu)') # cuda:0 cuda:1
 
     opt = parser.parse_args()
 

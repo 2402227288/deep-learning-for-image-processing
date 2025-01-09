@@ -38,14 +38,14 @@ def main_fun(rank, world_size, args):
         args.rank, args.dist_url), flush=True)
     dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
                             world_size=args.world_size, rank=args.rank)
-    dist.barrier()
+    dist.barrier() ### 同步！！！！！！！！！！！！！！！！！
     # 初始化各进程环境 end
 
     rank = args.rank
     device = torch.device(args.device)
     batch_size = args.batch_size
     weights_path = args.weights
-    args.lr *= args.world_size  # 学习率要根据并行GPU的数量进行倍增
+    args.lr *= args.world_size  # 学习率要根据并行GPU的数量进行倍增！！！！！！！！！！！！！！！
     checkpoint_path = ""
 
     if rank == 0:  # 在第一个进程中打印信息，并实例化tensorboard
@@ -110,7 +110,7 @@ def main_fun(rank, world_size, args):
     # 实例化模型
     model = resnet34(num_classes=num_classes).to(device)
 
-    # 如果存在预训练权重则载入
+    # 如果存在预训练权重则载入！！！！！！！！！！！！！！！！！！！
     if os.path.exists(weights_path):
         weights_dict = torch.load(weights_path, map_location=device)
         load_weights_dict = {k: v for k, v in weights_dict.items()
@@ -155,16 +155,16 @@ def main_fun(rank, world_size, args):
                                     optimizer=optimizer,
                                     data_loader=train_loader,
                                     device=device,
-                                    epoch=epoch)
+                                    epoch=epoch) #里面有同步！！！！！！！！！！
 
         scheduler.step()
 
         sum_num = evaluate(model=model,
                            data_loader=val_loader,
-                           device=device)
+                           device=device) # 也有同步！！！！！！！！！！ 但是不推荐，测试还是建议在单GPU上训练
         acc = sum_num / val_sampler.total_size
 
-        if rank == 0:
+        if rank == 0: #只有主进程打印
             print("[epoch {}] accuracy: {}".format(epoch, round(acc, 3)))
             tags = ["loss", "accuracy", "learning_rate"]
             tb_writer.add_scalar(tags[0], mean_loss, epoch)

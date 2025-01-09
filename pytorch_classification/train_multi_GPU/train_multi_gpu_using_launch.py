@@ -69,16 +69,16 @@ def main(args):
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_data_set)
     val_sampler = torch.utils.data.distributed.DistributedSampler(val_data_set)
 
-    # 将样本索引每batch_size个元素组成一个list
+    # 将样本索引每batch_size个元素组成一个list，对train_sampler做进一步处理
     train_batch_sampler = torch.utils.data.BatchSampler(
-        train_sampler, batch_size, drop_last=True)
+        train_sampler, batch_size, drop_last=True) # drop_last=True如果凑不齐一个batch，就丢了
 
     nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
     if rank == 0:
         print('Using {} dataloader workers every process'.format(nw))
     train_loader = torch.utils.data.DataLoader(train_data_set,
                                                batch_sampler=train_batch_sampler,
-                                               pin_memory=True,
+                                               pin_memory=True, # 加速
                                                num_workers=nw,
                                                collate_fn=train_data_set.collate_fn)
 
@@ -93,7 +93,8 @@ def main(args):
 
     # 如果存在预训练权重则载入
     if os.path.exists(weights_path):
-        weights_dict = torch.load(weights_path, map_location=device)
+        # weights_dict = torch.load(weights_path, map_location=device)
+        weights_dict = torch.load(weights_path)
         load_weights_dict = {k: v for k, v in weights_dict.items()
                              if model.state_dict()[k].numel() == v.numel()}
         model.load_state_dict(load_weights_dict, strict=False)
@@ -130,7 +131,7 @@ def main(args):
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)
 
     for epoch in range(args.epochs):
-        train_sampler.set_epoch(epoch)
+        train_sampler.set_epoch(epoch) ## 保证打乱顺序随着epoch变化
 
         mean_loss = train_one_epoch(model=model,
                                     optimizer=optimizer,
@@ -159,7 +160,7 @@ def main(args):
         if os.path.exists(checkpoint_path) is True:
             os.remove(checkpoint_path)
 
-    cleanup()
+    cleanup() # 释放资源，取消进程组
 
 
 if __name__ == '__main__':
